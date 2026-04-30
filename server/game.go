@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/coder/websocket"
 )
@@ -68,33 +69,35 @@ func (g *Game) updateWithGameState(player *Player, ctx context.Context) error {
 	response_map := fmt.Sprintf("map %d %f %f\n", len(g.board), g.chunkSize, g.seed)
 
 	// troops
-	response_troops := fmt.Sprintf("troops %d\n", len(g.players))
+	response_troops := strings.Builder{}
+	fmt.Fprintf(&response_troops, "troops %d\n", len(g.players))
 	for _, p := range g.players {
-		response_troops += fmt.Sprintf("%d ", len(p.troops))
+		fmt.Fprintf(&response_troops, "%d ", len(p.troops))
 	}
-	response_troops += "\n"
+	response_troops.WriteByte('\n')
 
 	for _, p := range g.players {
 		for _, t := range p.troops {
-			response_troops += fmt.Sprintf("%d %d,", t.x, t.y)
+			fmt.Fprintf(&response_troops, "%d %d,", t.x, t.y)
 		}
-		response_troops += "\n"
+		response_troops.WriteByte('\n')
 	}
 
 	// modified tiles
-	response_tiles := "modified-tiles\n"
+	response_tiles := strings.Builder{}
+	response_tiles.WriteString("modified-tiles\n")
 	for i := range g.board {
 		for j := range g.board[i] {
 			if g.board[i][j].modified {
-				response_tiles += "m"
+				response_tiles.WriteByte('m')
 			} else {
-				response_tiles += "."
+				response_tiles.WriteByte('.')
 			}
 		}
-		response_tiles += "\n"
+		response_tiles.WriteByte('\n')
 	}
 
-	response := response_player_index + response_map + response_troops + response_tiles
+	response := response_player_index + response_map + response_troops.String() + response_tiles.String()
 	return player.c.Write(ctx, websocket.MessageText, []byte(response))
 }
 

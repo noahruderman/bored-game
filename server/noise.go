@@ -70,7 +70,7 @@ func lerp(t, a, b float64) float64 {
     return a + t * (b - a);
 }
 
-func grad(hash int , x, y, z float64) float64 {
+func grad(hash int, x, y, z float64) float64 {
     // CONVERT LO 4 BITS OF HASH CODE
     // INTO 12 GRADIENT DIRECTIONS.
     h := hash & 15

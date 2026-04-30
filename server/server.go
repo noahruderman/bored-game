@@ -24,7 +24,7 @@ var games []*Game
 func main() {
 	address := "0.0.0.0:10000"
 	http.HandleFunc("/echo", echoHandler)
-	log.Printf("Starting server, go to http://%s/ to try it out!", address)
+	log.Printf("Starting server at http://%s/", address)
 	err := http.ListenAndServe(address, nil)
 	log.Fatal(err)
 }
