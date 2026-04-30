@@ -29,7 +29,7 @@ if (socket.readyState !== socket.OPEN) {
     localSocket = false;
     socket = new WebSocket("wss://bored-game-as81.onrender.com/echo");
 }
-const recievedMessages = [];
+const mappedMessages = new Map();
 socket.onmessage = receiveMessage;
 socket.onclose = async () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -72,7 +72,7 @@ function parseGameState(state) {
     while (players.length < numPlayers) {
         players.push(new Player());
     }
-    const troopNum = lines[3].split(" ").map(s => parseInt(s));
+    const troopNum = lines[3].split(" ").map((s) => parseInt(s));
     let lineOffset = 4;
     for (let i = 0; i < numPlayers; i++) {
         players[i].troops = [];
@@ -93,9 +93,11 @@ function parseGameState(state) {
 }
 function receiveMessage(msg) {
     console.log(msg);
-    recievedMessages.push(msg.data);
-    const lines = msg.data.split("\n");
+    let lines = msg.data.split("\n");
     if (!lines[0].startsWith("broadcast")) {
+        const id = parseInt(lines[0]);
+        lines.splice(0, 1);
+        mappedMessages.set(id, lines.join("\n"));
         return;
     }
     const line1 = lines[1].split(" ");
@@ -114,7 +116,7 @@ function receiveMessage(msg) {
             break;
         }
         case "move-troop": {
-            const parsed = line1.map(s => parseInt(s));
+            const parsed = line1.map((s) => parseInt(s));
             const [pI, tI] = [parsed[1], parsed[2]];
             const [x, y] = [parsed[3], parsed[4]];
             const troop = players[pI].troops[tI];
@@ -122,7 +124,7 @@ function receiveMessage(msg) {
             break;
         }
         case "add-troop": {
-            const parsed = line1.map(s => parseInt(s));
+            const parsed = line1.map((s) => parseInt(s));
             const [pI, x, y] = [parsed[1], parsed[2], parsed[3]];
             players[pI].troops.push(new Troop(x, y));
             break;
@@ -139,17 +141,18 @@ function receiveMessage(msg) {
 async function sendMessage(message, waitForResponse = false) {
     if (socket.readyState !== socket.OPEN)
         throw new Error("Socket is not open");
-    const l = recievedMessages.length;
-    socket.send(message);
+    const id = Math.round(Math.random() * 1e9);
+    socket.send(id + " " + message);
     if (!waitForResponse)
         return "";
     let i = 0;
-    while (recievedMessages.length === l && i++ < 1000) {
-        await new Promise((resolve) => setTimeout(resolve, 10));
+    while (!mappedMessages.has(id) && i++ < 20) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    if (i >= 1000)
+    const response = mappedMessages.get(id);
+    if (response === undefined)
         throw new Error("Timeout waiting for server to respond");
-    return recievedMessages[l];
+    return response;
 }
 var TileType;
 (function (TileType) {

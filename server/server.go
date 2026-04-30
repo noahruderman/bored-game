@@ -59,6 +59,9 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received '%v'", string(message))
 
 		parts := strings.Split(string(message), " ")
+		id, _ := strconv.Atoi(parts[0])
+		parts = parts[1:]
+
 		if parts[0] == "create-game" {
 			if inGame {
 				continue
@@ -76,7 +79,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 			game.seed = rand.Float64() * 1e9
 			game.generateMap(19)
 
-			c.Write(ctx, websocket.MessageText, []byte("ack"))
+			c.Write(ctx, websocket.MessageText, fmt.Append(nil, id, "\nack"))
 			game.updateWithMap(&player, ctx)
 
 			continue
@@ -90,14 +93,14 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 			game.players = append(game.players, &player)
 			player.player_index = len(game.players) - 1
 
-			game.updateWithGameState(&player, ctx)
+			game.respondWithGameState(&player, ctx, id)
 			game.broadcastMessage(&player, ctx, "new-player")
 
 			continue
 		}
 
 		if !inGame {
-			c.Write(ctx, websocket.MessageText, []byte("Error: you are not in a game"))
+			c.Write(ctx, websocket.MessageText, fmt.Append(nil, id, "\nError: you are not in a game"))
 			continue
 		}
 
@@ -134,7 +137,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 
 			player.troops = append(player.troops, Troop{x: x, y: y, isOnShip: false})
 
-			err = c.Write(ctx, websocket.MessageText, []byte("ack"))
+			err = c.Write(ctx, websocket.MessageText, fmt.Append(nil, id, "\nack"))
 			if err != nil {
 				break
 			}
@@ -151,7 +154,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 			player.troops[troopIndex].x = x
 			player.troops[troopIndex].y = y
 
-			err = c.Write(ctx, websocket.MessageText, []byte("ack"))
+			err = c.Write(ctx, websocket.MessageText, fmt.Append(nil, id, "\nack"))
 			if err != nil {
 				break
 			}
@@ -166,7 +169,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 
 			game.board[y][x].modified = !game.board[y][x].modified
 
-			err = c.Write(ctx, websocket.MessageText, []byte("ack"))
+			err = c.Write(ctx, websocket.MessageText, fmt.Append(nil, id, "\nack"))
 			if err != nil {
 				break
 			}

@@ -35,7 +35,8 @@ if (socket.readyState !== socket.OPEN) {
     localSocket = false;
     socket = new WebSocket("wss://bored-game-as81.onrender.com/echo");
 }
-const recievedMessages: string[] = [];
+const mappedMessages: Map<number, string> = new Map<number, string>();
+
 socket.onmessage = receiveMessage;
 socket.onclose = async () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -105,10 +106,12 @@ function parseGameState(state: string) {
 
 function receiveMessage(msg: any) {
     console.log(msg);
-    recievedMessages.push(msg.data);
 
-    const lines: string[] = msg.data.split("\n");
+    let lines: string[] = msg.data.split("\n");
     if (!lines[0].startsWith("broadcast")) {
+        const id = parseInt(lines[0]);
+        lines.splice(0, 1);
+        mappedMessages.set(id, lines.join("\n"));
         return;
     }
 
@@ -155,19 +158,21 @@ function receiveMessage(msg: any) {
 async function sendMessage(message: string, waitForResponse: boolean = false) {
     if (socket.readyState !== socket.OPEN)
         throw new Error("Socket is not open");
-    const l = recievedMessages.length;
-    socket.send(message);
+    const id = Math.round(Math.random()*1e9);
+    socket.send(id + " " + message);
 
     if (!waitForResponse) return "";
 
     let i = 0;
-    while (recievedMessages.length === l && i++ < 1000) {
-        await new Promise((resolve) => setTimeout(resolve, 10));
+    while (!mappedMessages.has(id) && i++ < 20) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
-    if (i >= 1000) throw new Error("Timeout waiting for server to respond");
+    const response = mappedMessages.get(id);
+    if (response === undefined)
+        throw new Error("Timeout waiting for server to respond");
 
-    return recievedMessages[l];
+    return response;
 }
 
 enum TileType {

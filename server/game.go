@@ -9,11 +9,20 @@ import (
 )
 
 type Game struct {
-	board [][]Tile
+	board           [][]Tile
 	seed, chunkSize float64
 
-	players []*Player
+	players    []*Player
 	playerTurn int
+}
+
+type Player struct {
+	c         *websocket.Conn
+	connected bool
+
+	player_index int
+	troops       []Troop
+	wood, stone  int
 }
 
 func (g *Game) resizeBoard(length int) {
@@ -28,7 +37,7 @@ func (g *Game) generateMap(length int) {
 
 	for i := range length {
 		for j := range length {
-			noise := perlinNoise(float64(j) / g.chunkSize, float64(i) / g.chunkSize, g.seed)
+			noise := perlinNoise(float64(j)/g.chunkSize, float64(i)/g.chunkSize, g.seed)
 			tile := &g.board[i][j].tiletype
 
 			if noise < .25 {
@@ -61,7 +70,7 @@ func (g *Game) broadcastMessage(skipPlayer *Player, ctx context.Context, msg str
 	}
 }
 
-func (g *Game) updateWithGameState(player *Player, ctx context.Context) error {
+func (g *Game) respondWithGameState(player *Player, ctx context.Context, id int) error {
 	// player index
 	response_player_index := fmt.Sprintf("player-index %d\n", player.player_index)
 
@@ -97,20 +106,11 @@ func (g *Game) updateWithGameState(player *Player, ctx context.Context) error {
 		response_tiles.WriteByte('\n')
 	}
 
-	response := response_player_index + response_map + response_troops.String() + response_tiles.String()
-	return player.c.Write(ctx, websocket.MessageText, []byte(response))
+	response := fmt.Append(nil, id, "\n", response_player_index, response_map, response_troops.String(), response_tiles.String())
+	return player.c.Write(ctx, websocket.MessageText, response)
 }
 
 func (g *Game) updateWithMap(player *Player, ctx context.Context) error {
 	response := fmt.Sprintf("broadcast\nupdate-map %d %f %f\n", len(g.board), g.chunkSize, g.seed)
 	return player.c.Write(ctx, websocket.MessageText, []byte(response))
-}
-
-type Player struct {
-	c *websocket.Conn
-	connected bool
-
-	player_index int
-	troops []Troop
-	wood, stone int
 }
